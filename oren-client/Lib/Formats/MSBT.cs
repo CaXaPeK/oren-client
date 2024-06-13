@@ -16,11 +16,11 @@ public class MSBT : GeneralFile
     private void Parse(Stream fileStream)
     {
         LBL1 lbl1;
-        NLI1 nli1 = new();
-        ATO1 ato1 = new();
-        ATR1 atr1 = new();
-        TSY1 tsy1 = new();
-        TXT2 txt2 = new();
+        NLI1 nli1;
+        ATO1 ato1;
+        ATR1 atr1;
+        TSY1 tsy1;
+        TXT2 txt2;
         
         FileReader reader = new(fileStream);
         Header = new(reader);
@@ -37,6 +37,14 @@ public class MSBT : GeneralFile
                     HasLBL1 = true;
                     lbl1 = new(reader);
                     break;
+                case "NLI1":
+                    HasNLI1 = true;
+                    nli1 = new(reader);
+                    break;
+                case "ATO1":
+                    HasATO1 = true;
+                    ato1 = new(reader, sectionSize);
+                    break;
             }
         }
     }
@@ -47,35 +55,36 @@ public class MSBT : GeneralFile
 
         public LBL1(FileReader reader)
         {
-            Labels = new(new string[CalculateLabelCount(reader)]);
-
-            long startPosition = reader.Position;
-            uint hashTableSlotCount = reader.ReadUInt32();
-            for (uint i = 0; i < hashTableSlotCount; i++)
-            {
-                uint labelCount = reader.ReadUInt32();
-                uint labelOffset = reader.ReadUInt32();
-                long nextSlotPosition = reader.Position;
-
-                reader.JumpTo(startPosition + labelOffset);
-                for (uint j = 0; j < labelCount; j++)
-                {
-                    byte length = reader.ReadByte();
-                    string labelString = reader.ReadString(length);
-                    Labels[reader.ReadInt32()] = labelString;
-                }
-
-                reader.JumpTo(nextSlotPosition);
-            }
+            Labels = ReadLabels(reader);
         }
     }
     internal class NLI1
     {
+        public Dictionary<uint, uint> LineCounts { get; set; }
 
+        public NLI1(FileReader reader)
+        {
+            uint entryCount = reader.ReadUInt32();
+            LineCounts = new();
+            for (uint i = 0; i < entryCount; i++)
+            {
+                uint entryId = reader.ReadUInt32();
+                uint lineIndex = reader.ReadUInt32();
+                LineCounts.Add(entryId, lineIndex);
+            }
+        }
     }
     internal class ATO1
     {
+        public List<uint> Numbers { get; set; }
 
+        public ATO1(FileReader reader, uint sectionSize)
+        {
+            for (uint i = 0; i < sectionSize / 4; i++)
+            {
+                Numbers.Add(reader.ReadUInt32());
+            }
+        }
     }
     internal class ATR1
     {
@@ -87,6 +96,6 @@ public class MSBT : GeneralFile
     }
     internal class TXT2
     {
-
+        
     }
 }
