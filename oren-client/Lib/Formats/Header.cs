@@ -9,8 +9,8 @@ public class Header
     public Endianness Endianness { get; set; }
     public EncodingType EncodingType { get; set; }
     public byte Version { get; set; }
-    public short SectionCount { get; set; }
-    public int FileSize { get; set; }
+    public ushort SectionCount { get; set; }
+    public uint FileSize { get; set; }
 
     public Header(FileReader reader)
     {
@@ -25,17 +25,19 @@ public class Header
                 break;
         }
 
-        Endianness = (Endianness)reader.ReadInt16();
+        Endianness = (Endianness)reader.ReadUInt16();
         reader.Endianness = Endianness;
         
         reader.Skip(2);
 
         EncodingType = (EncodingType)reader.ReadByte();
         Version = reader.ReadByte();
-        SectionCount = reader.ReadInt16();
+        SectionCount = reader.ReadUInt16();
         
         reader.Skip(2);
 
-        //FileSize = reader.ReadInt32();
+        FileSize = reader.ReadUInt32();
+        
+        reader.Skip(0xA);
     }
 }

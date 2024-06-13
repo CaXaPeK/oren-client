@@ -30,12 +30,17 @@ public class FileReader : IDisposable
     
     public Endianness Endianness { get; set; }
 
-    #region public methods
-    
     public void Skip(int count)
     {
         Position += count;
     }
+
+    public void JumpTo(long position)
+    {
+        Position = position;
+    }
+    
+    #region reading
 
     public byte[] ReadBytes(int length)
     {
@@ -86,11 +91,43 @@ public class FileReader : IDisposable
         Position = position;
         return ReadInt16(length);
     }
+    
+    public ushort ReadUInt16(int length = 2)
+    {
+        byte[] bytes = ReadBytes(length, 2, Endianness == Endianness.LittleEndian);
+        return BitConverter.ToUInt16(bytes, 0);
+    }
+    public ushort ReadUInt16At(long position, int length = 2)
+    {
+        Position = position;
+        return ReadUInt16(length);
+    }
+    
+    public int ReadInt32(int length = 4)
+    {
+        byte[] bytes = ReadBytes(length, 4, Endianness == Endianness.LittleEndian);
+        return BitConverter.ToInt32(bytes, 0);
+    }
+    public int ReadInt32At(long position, int length = 4)
+    {
+        Position = position;
+        return ReadInt32(length);
+    }
+    
+    public uint ReadUInt32(int length = 4)
+    {
+        byte[] bytes = ReadBytes(length, 4, Endianness == Endianness.LittleEndian);
+        return BitConverter.ToUInt32(bytes, 0);
+    }
+    public uint ReadUInt32At(long position, int length = 4)
+    {
+        Position = position;
+        return ReadUInt32(length);
+    }
 
     #endregion
 
-    #region private methods
-
+    #region private reading
     private byte[] ReadBytes(int length, int padding, bool reversed = false)
     {
         if (length <= 0) return Array.Empty<byte>();
