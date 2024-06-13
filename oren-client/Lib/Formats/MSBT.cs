@@ -13,6 +13,10 @@ public class MSBT : GeneralFile
     
     public Header Header { get; set; }
 
+    public bool UsesAttributeStrings { get; set; }
+
+    public uint BytesPerAttribute { get; set; }
+
     private void Parse(Stream fileStream)
     {
         LBL1 lbl1;
@@ -44,6 +48,14 @@ public class MSBT : GeneralFile
                 case "ATO1":
                     HasATO1 = true;
                     ato1 = new(reader, sectionSize);
+                    break;
+                case "ATR1":
+                    HasATR1 = true;
+                    atr1 = new(reader, sectionSize, this);
+                    break;
+                case "TSY1":
+                    HasTSY1 = true;
+                    tsy1 = new(reader, sectionSize);
                     break;
             }
         }
@@ -78,9 +90,9 @@ public class MSBT : GeneralFile
     {
         public List<uint> Numbers { get; set; }
 
-        public ATO1(FileReader reader, uint sectionSize)
+        public ATO1(FileReader reader, long sectionSize)
         {
-            for (uint i = 0; i < sectionSize / 4; i++)
+            for (long i = 0; i < sectionSize / 4; i++)
             {
                 Numbers.Add(reader.ReadUInt32());
             }
@@ -88,11 +100,55 @@ public class MSBT : GeneralFile
     }
     internal class ATR1
     {
+        public List<Attribute> Attributes { get; set; }
 
+        public ATR1(FileReader reader, long sectionSize, MSBT msbt)
+        {
+            Attributes = new();
+            
+            long startPosition = reader.Position;
+            uint attributeCount = reader.ReadUInt32();
+            uint bytesPerAttribute = reader.ReadUInt32();
+            bool hasStrings = sectionSize > (8 + (attributeCount * bytesPerAttribute));
+            
+            msbt.BytesPerAttribute = bytesPerAttribute;
+            msbt.UsesAttributeStrings = hasStrings;
+            
+            List<byte[]> attributeByteData = new();
+            for (uint i = 0; i < attributeCount; i++)
+            {
+                attributeByteData.Add(reader.ReadBytes((int)bytesPerAttribute));
+            }
+
+            foreach (byte[] byteData in attributeByteData)
+            {
+                if (hasStrings)
+                {
+                    uint stringOffset = BitConverter.ToUInt32(byteData[0..4]);
+                    string stringData = reader.ReadTerminatedStringAt(startPosition + stringOffset);
+                
+                    Attributes.Add(new(byteData, stringData));
+                }
+                else
+                {
+                    Attributes.Add(new(byteData));
+                }
+            }
+        }
     }
     internal class TSY1
     {
+        public List<int> StyleIndices { get; set; }
 
+        public TSY1(FileReader reader, long sectionSize)
+        {
+            StyleIndices = new();
+            
+            for (uint i = 0; i < sectionSize / 4; i++)
+            {
+                StyleIndices.Add(reader.ReadInt32());
+            }
+        }
     }
     internal class TXT2
     {

@@ -81,6 +81,47 @@ public class FileReader : IDisposable
         return ReadString(length, encoding);
     }
     
+    public string ReadTerminatedString(int maxLength = -1)
+    {
+        return ReadTerminatedString(Encoding.UTF8, maxLength);
+    }
+    public string ReadTerminatedStringAt(long position, int maxLength = -1)
+    {
+        return ReadTerminatedStringAt(position, Encoding.UTF8, maxLength);
+    }
+
+    public string ReadTerminatedString(Encoding encoding, int maxLength = -1)
+    {
+        List<byte> bytes = new(maxLength > 0 ? maxLength : 256);
+        int terminatorLength = encoding.GetByteCount("\0");
+
+        int nullBytesCount = 0;
+        while (bytes.Count != maxLength && nullBytesCount < terminatorLength)
+        {
+            byte b = _reader.ReadByte();
+            nullBytesCount = b == 0x00 ? nullBytesCount + 1 : 0;
+            bytes.Add(b);
+        }
+
+        if (bytes.Count == maxLength)
+        {
+            return encoding.GetString(bytes.ToArray()).TrimEnd('\0');
+        }
+
+        for (int i = 0; i < terminatorLength - 1; ++i)
+        {
+            bytes.Add(0x00);
+        }
+
+        return encoding.GetString(bytes.ToArray())[..^1].TrimEnd('\0');
+    }
+    
+    public string ReadTerminatedStringAt(long position, Encoding encoding, int maxLength = -1)
+    {
+        Position = position;
+        return ReadTerminatedString(encoding, maxLength);
+    }
+    
     public short ReadInt16(int length = 2)
     {
         byte[] bytes = ReadBytes(length, 2, Endianness == Endianness.LittleEndian);
