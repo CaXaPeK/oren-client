@@ -39,6 +39,14 @@ public class FileReader : IDisposable
     {
         Position = position;
     }
+
+    public void Align(int alignment)
+    {
+        if (Position % alignment != 0)
+        {
+            Position = alignment * (Position / alignment + 1);
+        }
+    }
     
     #region reading
 

@@ -1,10 +1,14 @@
-﻿using System.Text;
+﻿using System.Data;
+using System.Text;
+using Microsoft.VisualBasic;
 using oren_client.Lib.Utils;
 
 namespace oren_client.Lib.Formats;
 
 public class MSBT : GeneralFile
 {
+    private MSBP Msbp;
+    
     public bool HasLBL1 { get; set; }
     public bool HasNLI1 { get; set; }
     public bool HasATO1 { get; set; }
@@ -17,14 +21,24 @@ public class MSBT : GeneralFile
 
     public uint BytesPerAttribute { get; set; }
 
+    public MSBT()
+    {
+        Msbp = null;
+    }
+
+    public MSBT(MSBP msbp)
+    {
+        Msbp = msbp;
+    }
+
     private void Parse(Stream fileStream)
     {
-        LBL1 lbl1;
-        NLI1 nli1;
-        ATO1 ato1;
-        ATR1 atr1;
-        TSY1 tsy1;
-        TXT2 txt2;
+        LBL1 lbl1 = new();
+        NLI1 nli1 = new();
+        ATO1 ato1 = new();
+        ATR1 atr1 = new();
+        TSY1 tsy1 = new();
+        TXT2 txt2 = new();
         
         FileReader reader = new(fileStream);
         Header = new(reader);
@@ -57,13 +71,22 @@ public class MSBT : GeneralFile
                     HasTSY1 = true;
                     tsy1 = new(reader, sectionSize);
                     break;
+                case "TXT2":
+                    txt2 = new(reader, HasATR1, atr1, HasTSY1, tsy1, Msbp);
+                    break;
+                default:
+                    throw new DataException("Unknown section magic!");
             }
+            
+            reader.Align(0x10);
         }
     }
 
     internal class LBL1
     {
         public List<String> Labels { get; set; }
+
+        public LBL1() {}
 
         public LBL1(FileReader reader)
         {
@@ -74,6 +97,8 @@ public class MSBT : GeneralFile
     {
         public Dictionary<uint, uint> LineCounts { get; set; }
 
+        public NLI1() {}
+        
         public NLI1(FileReader reader)
         {
             uint entryCount = reader.ReadUInt32();
@@ -90,6 +115,8 @@ public class MSBT : GeneralFile
     {
         public List<uint> Numbers { get; set; }
 
+        public ATO1() {}
+
         public ATO1(FileReader reader, long sectionSize)
         {
             for (long i = 0; i < sectionSize / 4; i++)
@@ -101,6 +128,8 @@ public class MSBT : GeneralFile
     internal class ATR1
     {
         public List<Attribute> Attributes { get; set; }
+
+        public ATR1() {}
 
         public ATR1(FileReader reader, long sectionSize, MSBT msbt)
         {
@@ -140,6 +169,8 @@ public class MSBT : GeneralFile
     {
         public List<int> StyleIndices { get; set; }
 
+        public TSY1() {}
+
         public TSY1(FileReader reader, long sectionSize)
         {
             StyleIndices = new();
@@ -152,6 +183,90 @@ public class MSBT : GeneralFile
     }
     internal class TXT2
     {
-        
+        public List<Message> Messages { get; set; }
+
+        public TXT2() {}
+
+        public TXT2(FileReader reader, bool hasATR1, ATR1 atr1, bool hasTSY1, TSY1 tsy1, MSBP? msbp)
+        {
+            Messages = new();
+            
+            long startPosition = reader.Position;
+            uint messageCount = reader.ReadUInt32();
+
+            for (uint i = 0; i < messageCount; i++)
+            {
+                Message message = new();
+                if (hasATR1)
+                {
+                    if (i < atr1.Attributes.Count)
+                    {
+                        message.Attribute = atr1.Attributes[(int)i];
+                    }
+                    else
+                    {
+                        throw new KeyNotFoundException("Numbers of ATR1 and TXT2 entries don't match!");
+                    }
+                }
+                if (hasTSY1)
+                {
+                    if (i < tsy1.StyleIndices.Count)
+                    {
+                        message.StyleId = tsy1.StyleIndices[(int)i];
+                    }
+                    else
+                    {
+                        throw new KeyNotFoundException("Numbers of TSY1 and TXT2 entries don't match!");
+                    }
+                }
+
+                uint stringOffset = reader.ReadUInt32();
+                long nextOffsetPosition = reader.Position;
+                
+                reader.JumpTo(startPosition + stringOffset);
+
+                bool reachedEnd = false;
+                StringBuilder messageString = new();
+
+                while (!reachedEnd)
+                {
+                    short character = reader.ReadInt16();
+                    switch (character)
+                    {
+                        case 0x0E:
+                            ushort tagGroup = reader.ReadUInt16();
+                            ushort tagType = reader.ReadUInt16();
+                            ushort argumentsLength = reader.ReadUInt16();
+                            byte[] rawTagArguments = reader.ReadBytes(argumentsLength);
+
+                            Tag tag = new(tagGroup, tagType, rawTagArguments);
+
+                            messageString.Append(tag.Stringify(msbp));
+                            break;
+                        
+                        case 0x0F:
+                            ushort tagEndGroup = reader.ReadUInt16();
+                            ushort tagEndType = reader.ReadUInt16();
+
+                            TagEnd tagEnd = new(tagEndGroup, tagEndType);
+
+                            messageString.Append(tagEnd.Stringify(msbp));
+                            break;
+                        
+                        case 0x00:
+                            reachedEnd = true;
+                            break;
+                        
+                        default:
+                            messageString.Append(Encoding.Unicode.GetString(BitConverter.GetBytes(character)));
+                            break;
+                    }
+                }
+
+                message.Text = messageString.ToString();
+                Messages.Add(message);
+                reader.JumpTo(nextOffsetPosition);
+            }
+        }
     }
 }
