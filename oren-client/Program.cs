@@ -1,3 +1,14 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using oren_client.Lib.Formats;
 
-Console.WriteLine("Hello, World!");
+/*if (args.Length != 1)
+{
+    return;
+}
+
+string fileName = args[0];*/
+
+byte[] msbtBytes = File.ReadAllBytes("C:\\Users\\student\\RiderProjects\\oren-client\\oren-client\\bin\\Debug\\net7.0\\base_mfre_101.msbt");
+
+MSBT msbt = new(msbtBytes);
+
+msbt.PrintAllMessages();

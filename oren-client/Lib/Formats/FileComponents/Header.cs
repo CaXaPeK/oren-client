@@ -25,7 +25,7 @@ public class Header
                 break;
         }
 
-        Endianness = (Endianness)reader.ReadUInt16();
+        Endianness = reader.ReadUInt16() == 0xFFFE ? Endianness.LittleEndian : Endianness.BigEndian;
         reader.Endianness = Endianness;
         
         reader.Skip(2);

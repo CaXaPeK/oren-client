@@ -7,32 +7,28 @@ namespace oren_client.Lib.Formats;
 
 public class MSBT : GeneralFile
 {
-    private MSBP Msbp;
-    
-    public bool HasLBL1 { get; set; }
-    public bool HasNLI1 { get; set; }
-    public bool HasATO1 { get; set; }
-    public bool HasATR1 { get; set; }
-    public bool HasTSY1 { get; set; }
-    
-    public Header Header { get; set; }
+    public MSBP Msbp;
+
+    public Dictionary<object, Message> Messages = new();
+
+    public bool HasLBL1 = false;
+    public bool HasNLI1 = false;
+    public bool HasATO1 = false;
+    public bool HasATR1 = false;
+    public bool HasTSY1 = false;
 
     public bool UsesAttributeStrings { get; set; }
 
     public uint BytesPerAttribute { get; set; }
-
-    public MSBT()
+    
+    public List<uint> ATO1Numbers { get; set; }
+    
+    public Header Header { get; set; }
+    
+    public MSBT(byte[] data)
     {
-        Msbp = null;
-    }
-
-    public MSBT(MSBP msbp)
-    {
-        Msbp = msbp;
-    }
-
-    private void Parse(Stream fileStream)
-    {
+        FileReader reader = new(new MemoryStream(data));
+        
         LBL1 lbl1 = new();
         NLI1 nli1 = new();
         ATO1 ato1 = new();
@@ -40,7 +36,6 @@ public class MSBT : GeneralFile
         TSY1 tsy1 = new();
         TXT2 txt2 = new();
         
-        FileReader reader = new(fileStream);
         Header = new(reader);
 
         for (int i = 0; i < Header.SectionCount; i++)
@@ -48,6 +43,7 @@ public class MSBT : GeneralFile
             string sectionMagic = reader.ReadString(4, Encoding.ASCII);
             uint sectionSize = reader.ReadUInt32();
             reader.Skip(8);
+            long startPosition = reader.Position;
             
             switch (sectionMagic)
             {
@@ -64,24 +60,56 @@ public class MSBT : GeneralFile
                     ato1 = new(reader, sectionSize);
                     break;
                 case "ATR1":
-                    HasATR1 = true;
-                    atr1 = new(reader, sectionSize, this);
+                    HasATR1 = false;
+                    //atr1 = new(reader, sectionSize, this);
                     break;
                 case "TSY1":
                     HasTSY1 = true;
                     tsy1 = new(reader, sectionSize);
                     break;
                 case "TXT2":
-                    txt2 = new(reader, HasATR1, atr1, HasTSY1, tsy1, Msbp);
+                    txt2 = new(reader, HasATR1, atr1, HasTSY1, tsy1);
                     break;
                 default:
                     throw new DataException("Unknown section magic!");
             }
             
+            reader.JumpTo(startPosition);
+            reader.Skip((int)sectionSize);
             reader.Align(0x10);
+        }
+
+        if (HasLBL1)
+        {
+            for (int i = 0; i < lbl1.Labels.Count; i++)
+            {
+                Messages.Add(lbl1.Labels[i], txt2.Messages[i]);
+            }
+        }
+        else if (HasNLI1)
+        {
+            foreach (var pair in nli1.Indices)
+            {
+                Messages.Add(pair.Key.ToString(), txt2.Messages[(int)pair.Value]);
+            }
+        }
+
+        if (HasATO1)
+        {
+            ATO1Numbers = ato1.Numbers;
         }
     }
 
+    public void PrintAllMessages()
+    {
+        foreach (var Message in Messages)
+        {
+            Console.WriteLine($"[{Message.Key}] {Message.Value.Text}");
+        }
+    }
+
+    #region msbt sections
+    
     internal class LBL1
     {
         public List<String> Labels { get; set; }
@@ -95,19 +123,19 @@ public class MSBT : GeneralFile
     }
     internal class NLI1
     {
-        public Dictionary<uint, uint> LineCounts { get; set; }
+        public Dictionary<uint, uint> Indices { get; set; }
 
         public NLI1() {}
         
         public NLI1(FileReader reader)
         {
             uint entryCount = reader.ReadUInt32();
-            LineCounts = new();
+            Indices = new();
             for (uint i = 0; i < entryCount; i++)
             {
                 uint entryId = reader.ReadUInt32();
-                uint lineIndex = reader.ReadUInt32();
-                LineCounts.Add(entryId, lineIndex);
+                uint messageIndex = reader.ReadUInt32();
+                Indices.Add(entryId, messageIndex);
             }
         }
     }
@@ -119,6 +147,8 @@ public class MSBT : GeneralFile
 
         public ATO1(FileReader reader, long sectionSize)
         {
+            Numbers = new();
+            
             for (long i = 0; i < sectionSize / 4; i++)
             {
                 Numbers.Add(reader.ReadUInt32());
@@ -187,7 +217,7 @@ public class MSBT : GeneralFile
 
         public TXT2() {}
 
-        public TXT2(FileReader reader, bool hasATR1, ATR1 atr1, bool hasTSY1, TSY1 tsy1, MSBP? msbp)
+        public TXT2(FileReader reader, bool hasATR1, ATR1 atr1, bool hasTSY1, TSY1 tsy1)
         {
             Messages = new();
             
@@ -241,7 +271,7 @@ public class MSBT : GeneralFile
 
                             Tag tag = new(tagGroup, tagType, rawTagArguments);
 
-                            messageString.Append(tag.Stringify(msbp));
+                            messageString.Append(tag.Stringify());
                             break;
                         
                         case 0x0F:
@@ -250,7 +280,7 @@ public class MSBT : GeneralFile
 
                             TagEnd tagEnd = new(tagEndGroup, tagEndType);
 
-                            messageString.Append(tagEnd.Stringify(msbp));
+                            messageString.Append(tagEnd.Stringify());
                             break;
                         
                         case 0x00:
@@ -269,4 +299,6 @@ public class MSBT : GeneralFile
             }
         }
     }
+    
+    #endregion
 }
