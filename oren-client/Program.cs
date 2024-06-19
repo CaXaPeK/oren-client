@@ -1,14 +1,28 @@
-﻿using oren_client.Lib.Formats;
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-/*if (args.Length != 1)
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+
+builder.Services.AddControllers();
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
 {
-    return;
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-string fileName = args[0];*/
+app.UseHttpsRedirection();
+app.UseAuthorization();
 
-byte[] msbtBytes = File.ReadAllBytes("C:\\Users\\student\\RiderProjects\\oren-client\\oren-client\\bin\\Debug\\net7.0\\base_mfre_101.msbt");
+app.MapControllers();
 
-MSBT msbt = new(msbtBytes);
-
-msbt.PrintAllMessages();
+app.Run();

@@ -10,6 +10,8 @@ public class MSBT : GeneralFile
     public MSBP Msbp;
 
     public Dictionary<object, Message> Messages = new();
+    public string FileName { get; set; }
+    public string Language { get; set; }
 
     public bool HasLBL1 = false;
     public bool HasNLI1 = false;
@@ -25,8 +27,11 @@ public class MSBT : GeneralFile
     
     public Header Header { get; set; }
     
-    public MSBT(byte[] data)
+    public MSBT(byte[] data, string? fileName = null, string? language = null)
     {
+        FileName = fileName;
+        Language = language;
+        
         FileReader reader = new(new MemoryStream(data));
         
         LBL1 lbl1 = new();
@@ -61,7 +66,7 @@ public class MSBT : GeneralFile
                     break;
                 case "ATR1":
                     HasATR1 = false;
-                    //atr1 = new(reader, sectionSize, this);
+                    atr1 = new(reader, sectionSize, this);
                     break;
                 case "TSY1":
                     HasTSY1 = true;
@@ -102,6 +107,7 @@ public class MSBT : GeneralFile
 
     public void PrintAllMessages()
     {
+        Console.WriteLine($"{Language} {FileName}.msbt");
         foreach (var Message in Messages)
         {
             Console.WriteLine($"[{Message.Key}] {Message.Value.Text}");
