@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.IO.Compression;
+using Ionic.Zip;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using oren_client.Lib.Formats;
+using oren_client.Services.Interfaces;
 
 namespace msbtApi.Controllers;
 
@@ -8,18 +11,26 @@ namespace msbtApi.Controllers;
 [ApiController]
 public class MsbtController : ControllerBase
 {
-    /*private readonly IMsbtService _msbtService;
+    private readonly IMsbtService _msbtService;
 
     public MsbtController(IMsbtService msbtService)
     {
         _msbtService = msbtService;
-    }*/
+    }
     
     [HttpPost("msbtToStringList")]
     public async Task<IActionResult> MsbtToStringList(IFormFile msbtFile)
     {
-        MSBT msbt = new(msbtFile.OpenReadStream(), msbtFile.FileName);
+        var list = _msbtService.MsbtToStringList(msbtFile);
         
-        return Ok(msbt.MessagesToStringList());
+        return Ok(list);
+    }
+
+    [HttpPost("zipToSheets")]
+    public async Task<IActionResult> ZipToSheets(IFormFile zipWithMsbts)
+    {
+        var sheets = _msbtService.ZipToSheets(zipWithMsbts);
+        
+        return Ok(sheets);
     }
 }

@@ -13,6 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="DotNetZip" Version="1.16.0" />
       <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.20" />
       <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="7.0.20">
         <PrivateAssets>all</PrivateAssets>
@@ -23,6 +24,7 @@
       <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.6.2" />
       <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.6.2" />
       <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.6.2" />
+      <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.0-preview.5.24306.7" />
     </ItemGroup>
 
 </Project>
