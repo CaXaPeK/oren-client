@@ -27,12 +27,12 @@ public class MSBT : GeneralFile
     
     public Header Header { get; set; }
     
-    public MSBT(byte[] data, string? fileName = null, string? language = null)
+    public MSBT(Stream fileStream, string? fileName = null, string? language = null)
     {
         FileName = fileName;
         Language = language;
         
-        FileReader reader = new(new MemoryStream(data));
+        FileReader reader = new(fileStream);
         
         LBL1 lbl1 = new();
         NLI1 nli1 = new();
@@ -112,6 +112,17 @@ public class MSBT : GeneralFile
         {
             Console.WriteLine($"[{Message.Key}] {Message.Value.Text}");
         }
+    }
+
+    public List<string> MessagesToStringList()
+    {
+        List<string> strings = new();
+        foreach (var Message in Messages)
+        {
+            strings.Add($"[{Message.Key}] {Message.Value.Text}");
+        }
+
+        return strings;
     }
 
     #region msbt sections
