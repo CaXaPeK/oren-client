@@ -69,6 +69,7 @@ public class MsbtService : IMsbtService
             }
 
             sheet.Labels = labels;
+            sheet.FileName = msbtName;
             sheet.Version = baseLanguageMsbt.Header.Version;
             sheet.IsBigEndian = baseLanguageMsbt.Header.Endianness == Endianness.BigEndian;
             sheet.UseIndices = baseLanguageMsbt.HasNLI1;

@@ -2,6 +2,8 @@
 
 public class MsbtSheet
 {
+    public string FileName { get; set; }
+    
     public int Version { get; set; }
     
     public bool IsBigEndian { get; set; }
